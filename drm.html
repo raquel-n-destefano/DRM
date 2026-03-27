@@ -173,9 +173,9 @@
       const selectedLower = userAnswers[userAnswers.length-1].answer.map(w => w.toLowerCase());
       const originalLower = lastQ.originalList.map(w => w.toLowerCase());
 
-      const correct = selectedLower.filter(w => originalLower.includes(w));
-      const incorrect = selectedLower.filter(w => !originalLower.includes(w));
-      const missed = originalLower.filter(w => !selectedLower.includes(w));
+      const correctWords = selectedLower.filter(w => originalLower.includes(w));
+      const incorrectWords = selectedLower.filter(w => !originalLower.includes(w));
+      const missedWords = originalLower.filter(w => !selectedLower.includes(w));
 
       const targetLower = lastQ.targetWord.toLowerCase();
       const wildcardLower = lastQ.wildcard.toLowerCase();
@@ -192,11 +192,10 @@
         <p><strong>Name / Age / Gender:</strong> ${userInfo.name} / ${userInfo.age} / ${userInfo.gender}</p>
         <p><strong>${lastQ.prompt}</strong></p>
         <div class="checkbox-grid">${checkboxes}</div>
-        <p>${targetStatus}</p>
-        <p>${wildcardStatus}</p>
-        <p>Correct words selected: ${correct.length}</p>
-        <p>Words incorrectly selected: ${incorrect.length}</p>
-        <p>Words missed: ${missed.length}</p>
+        <p>${targetStatus} | ${wildcardStatus}</p>
+        <p>Correct: ${correctWords.join(", ")} (${correctWords.length})</p>
+        <p>Incorrect: ${incorrectWords.join(", ")} (${incorrectWords.length})</p>
+        <p>Missed: ${missedWords.join(", ")} (${missedWords.length})</p>
       `;
     }
 
