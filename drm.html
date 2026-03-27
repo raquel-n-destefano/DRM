@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DRM Task</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+    #app h1 { font-size: 4em; text-align: center; margin-top: 100px; }
+
+    /* User info and summary box */
+    .user-info { margin-bottom: 20px; font-weight: bold; }
+    .summary-box { border: 1px solid #ccc; padding: 15px; border-radius: 8px; max-width: 600px; }
+
+    /* Quiz / summary select-all (multi-column) */
+    .quiz-checkbox-list label {
+      display: inline-block;
+      width: 25%; /* 4 per row */
+      margin-bottom: 10px;
+    }
+
+    .result { margin-top: 15px; font-weight: bold; }
+    .correct { color: green; }
+    .incorrect { color: red; }
+    .missed { color: orange; }
+  </style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+  const words = ["fox", "head", "pony", "lobster",
+                 "wiggle", "beaver", "possum", "mermaid",
+                 "wag", "rat", "kite"];
+  let currentIndex = 0;
+
+  const questions = [
+    { type: "number", prompt: "5 * 7 = ?" },
+    { type: "number", prompt: "If John has 10 apples, then gives Jan 4 apples, how many apples does John have?" },
+    { type: "number", prompt: "How many sides does a triangle have?" },
+    { type: "dropdown", prompt: "Who is the current President of the United States?",
+      options: ["Donald Trump", "Joe Biden", "Barack Obama", "George W. Bush", "Elon Musk"] },
+    { type: "number", prompt: "How many times does the letter ‘e’ appear in the phrase “Greetings, Earthling!”?" },
+    { type: "selectAll", prompt: "Which of the following words were shown to you before?",
+      options: ["wag", "wiggle", "rat", "mermaid", "head", "pony", "desk", "tail", "beaver", "fox", "possum", "kite", "lobster"],
+      correctWords: ["Wag", "wiggle", "rat", "mermaid", "head", "pony", "beaver", "fox", "possum", "kite", "lobster"],
+      targetWord: "tail",
+      wildcard: "table"
+    }
+  ];
+
+  let questionIndex = 0;
+  const userAnswers = [];
+  const userInfo = {};
+
+  // --- User info ---
+  function showUserInfoForm() {
+    const app = document.getElementById("app");
+    app.innerHTML = `
+      <h2>DRM Task</h2>
+      <p>Thank you for helping out with this assignment! Please enter your information:</p>
+      <label>Name: <input type="text" id="name" /></label><br><br>
+      <label>Age: <input type="text" id="age" /></label><br><br>
+      <label>Gender: 
+        <select id="gender">
+          <option value="">Select...</option>
+          <option value="Female">Female</option>
+          <option value="Male">Male</option>
+        </select>
+      </label><br><br>
+      <button onclick="submitUserInfo()">Continue</button>
+    `;
+  }
+
+  function submitUserInfo() {
+    const name = document.getElementById("name").value.trim();
+    const ageInput = document.getElementById("age").value.trim();
+    const gender = document.getElementById("gender").value;
+
+    if (!name) { alert("Please enter your name."); return; }
+    const age = parseInt(ageInput, 10);
+    if (!ageInput || isNaN(age)) { alert("Please enter a valid integer for age."); return; }
+    if (gender !== "Male" && gender !== "Female") { alert("Please select Male or Female."); return; }
+
+    userInfo.name = name;
+    userInfo.age = age;
+    userInfo.gender = gender;
+
+    showFlashWarning();
+  }
+
+  // --- Flash warning ---
+  function showFlashWarning() {
+    const app = document.getElementById("app");
+    app.innerHTML = `
+      <h2>Brace yourself!</h2>
+      <p>Heads up: This next part will show flashing words quickly. Pay attention.</p>
+      <button onclick="startQuiz()">Ready or not....</button>
+    `;
+  }
+
+  // --- Flashing words ---
+  function startQuiz() { currentIndex = 0; showWord(); }
+
+  function showWord() {
+    const app = document.getElementById("app");
+    if (currentIndex < words.length) {
+      app.innerHTML = `<h1 style="font-size: 4em; text-align:center;">${words[currentIndex]}</h1>`;
+      setTimeout(() => { currentIndex++; showWord(); }, 1500);
+    } else {
+      showTransitionPage();
+    }
+  }
+
+  // --- Transition page ---
+  function showTransitionPage() {
+    const app = document.getElementById("app");
+    app.innerHTML = `
+      <h2>Almost done....</h2>
+      <p>You will now be asked a series of questions.</p>
+      <button onclick="startQuestions()">Continue</button>
+    `;
+  }
+
+  function startQuestions() { questionIndex = 0; showQuestion(); }
+
+  // --- Show questions ---
+  function showQuestion() {
+    const app = document.getElementById("app");
+    const q = questions[questionIndex];
+    if (!q) { showSummaryPage(); return; }
+
+    if (q.type === "number") {
+      app.innerHTML = `<h2>${q.prompt}</h2>
+        <input id="answer" placeholder="Enter a number"/>
+        <button onclick="submitAnswer()">Continue</button>`;
+    } else if (q.type === "dropdown") {
+      const optionsHTML = q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("");
+      app.innerHTML = `<h2>${q.prompt}</h2>
+        <select id="answer"><option value="">Select an answer</option>${optionsHTML}</select>
+        <button onclick="submitAnswer()">Continue</button>`;
+    } else if (q.type === "selectAll") {
+      const optionsHTML = q.options.map(opt => `<label><input type="checkbox" value="${opt}"/> ${opt}</label>`).join("");
+      app.innerHTML = `<h2>${q.prompt}</h2>
+                       <div class="quiz-checkbox-list">${optionsHTML}</div>
+                       <button onclick="submitAnswer()">Continue</button>`;
+    }
+  }
+
+  function submitAnswer() {
+    const q = questions[questionIndex];
+    let answerInput;
+
+    if (q.type === "number" || q.type === "dropdown") {
+      answerInput = document.getElementById("answer").value.trim();
+    } else if (q.type === "selectAll") {
+      const checkboxes = Array.from(document.querySelectorAll("input[type='checkbox']"));
+      answerInput = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
+      if (answerInput.length === 0) { alert("Please select at least one word."); return; }
+    }
+
+    if (q.type === "number") { if (!/^\d+$/.test(answerInput)) { alert("Please enter a valid number."); return; } }
+    else if (q.type === "dropdown") { if (answerInput === "") { alert("Please select an option."); return; } }
+
+    userAnswers.push(answerInput);
+    questionIndex++;
+    showQuestion();
+  }
+
+  // --- Final summary ---
+  function showSummaryPage() {
+    const app = document.getElementById("app");
+    const q = questions.find(q => q.type === "selectAll");
+    const userSelection = userAnswers[userAnswers.length - 1];
+
+    const selectedSet = new Set(userSelection);
+    const correctSet = new Set(q.correctWords);
+
+    const correctSelected = userSelection.filter(w => correctSet.has(w));
+    const incorrectSelected = userSelection.filter(w => !correctSet.has(w));
+    const missed = q.correctWords.filter(w => !selectedSet.has(w));
+
+    const gotTarget = selectedSet.has(q.targetWord);
+    const gotWildcard = selectedSet.has(q.wildcard);
+
+    let html = `<h2>Summary</h2>`;
+    html += `<p>All done! Please take a screenshot of this page and send it to your very grateful friend. Thanks!</p>`;
+    html += `<div class="user-info">Name: ${userInfo.name} | Age: ${userInfo.age} | Gender: ${userInfo.gender}</div>`;
+    html += `<div class="summary-box"><h3>${q.prompt}</h3>`;
+    html += `<div class="quiz-checkbox-list">`; // multi-column layout
+    q.options.forEach(option => {
+      const checked = selectedSet.has(option) ? "checked" : "";
+      html += `<label><input type="checkbox" disabled ${checked}/> ${option}</label>`;
+    });
+    html += `</div><div class="result">`;
+    html += `<p class="${gotTarget ? "correct" : "incorrect"}">Target word "${q.targetWord}": ${gotTarget ? "Selected ✅" : "Not selected ❌"}</p>`;
+    html += `<p class="${gotWildcard ? "incorrect" : "correct"}">Wildcard "${q.wildcard}": ${gotWildcard ? "Selected ❌" : "Not selected ✅"}</p>`;
+    html += `<p class="correct">Correct words selected: ${correctSelected.join(", ") || "(none)"}</p>`;
+    html += `<p class="incorrect">Incorrect words selected: ${incorrectSelected.join(", ") || "(none)"}</p>`;
+    html += `<p class="missed">Missed words: ${missed.join(", ") || "(none)"}</p>`;
+    html += `</div></div>`;
+
+    app.innerHTML = html;
+  }
+
+  // Prevent back button
+  history.pushState(null, null, location.href);
+  window.onpopstate = function () { history.go(1); };
+
+  showUserInfoForm();
+</script>
+
+</body>
+</html>
