@@ -1,213 +1,208 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>DRM Task</title>
+  <title>Word Quiz</title>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
-    #app h1 { font-size: 4em; text-align: center; margin-top: 100px; }
-
-    /* User info and summary box */
-    .user-info { margin-bottom: 20px; font-weight: bold; }
-    .summary-box { border: 1px solid #ccc; padding: 15px; border-radius: 8px; max-width: 600px; }
-
-    /* Quiz / summary select-all (multi-column) */
-    .quiz-checkbox-list label {
-      display: inline-block;
-      width: 25%; /* 4 per row */
-      margin-bottom: 10px;
-    }
-
-    .result { margin-top: 15px; font-weight: bold; }
-    .correct { color: green; }
-    .incorrect { color: red; }
-    .missed { color: orange; }
+    body { font-family: Arial, sans-serif; }
+    #word { font-size: 3em; text-align: center; margin: 50px; }
+    .quiz-question { margin-bottom: 20px; }
+    .checkbox-grid { display: flex; flex-wrap: wrap; max-width: 600px; }
+    .checkbox-grid label { width: 25%; margin-bottom: 5px; }
+    #summary input { margin-right: 10px; }
   </style>
 </head>
 <body>
 
-<div id="app"></div>
+  <div id="app"></div>
 
-<script>
-  const words = ["fox", "head", "pony", "lobster",
-                 "wiggle", "beaver", "possum", "mermaid",
-                 "wag", "rat", "kite"];
-  let currentIndex = 0;
+  <script>
+    // --- Data ---
+    const words = ["Fox", "head", "pony", "lobster",
+                   "wiggle", "beaver", "possum", "mermaid",
+                   "Wag", "rat", "kite"];
+    const questions = [
+      {type: 'number', prompt: '5 * 7 =', answer: 35},
+      {type: 'number', prompt: 'If Jonny has 10 apples, then Casey steals 4 of his apples, how many apples is Jonny left with?', answer: 6},
+      {type: 'number', prompt: 'How many sides does a triangle have?', answer: 3},
+      {type: 'select', prompt: 'Who is the current President of the United States?', options: ['Donald Trump','Joe Biden','Barack Obama','George W. Bush','Elon Musk'], answer: 'Joe Biden'},
+      {type: 'number', prompt: 'How many times does the letter "e" appear in "Greetings, Earthling!"?', answer: 3},
+      {type: 'check', prompt: 'Which of the following words were in the original list?',
+       options: ["Wag","wiggle","rat","mermaid","head","pony","desk","tail","beaver","fox","possum","kite","lobster"],
+       targetWord: 'tail',
+       wildcard: 'table',
+       originalList: words
+      }
+    ];
 
-  const questions = [
-    { type: "number", prompt: "5 * 7 = ?" },
-    { type: "number", prompt: "If Jonny has 10 apples, then gives Casey 4 apples, how many apples does Jonny have?" },
-    { type: "number", prompt: "How many sides does a triangle have?" },
-    { type: "dropdown", prompt: "Who is the current President of the United States?",
-      options: ["Donald Trump", "Joe Biden", "Barack Obama", "George W. Bush", "Elon Musk"] },
-    { type: "number", prompt: "How many times does the letter ‘e’ appear in the phrase “Greetings, Earthling!”?" },
-    { type: "selectAll", prompt: "Which of the following words were shown to you before?",
-      options: ["wag", "wiggle", "rat", "mermaid", "head", "pony", "desk", "tail", "beaver", "fox", "possum", "kite", "lobster"],
-      correctWords: ["Wag", "wiggle", "rat", "mermaid", "head", "pony", "beaver", "fox", "possum", "kite", "lobster"],
-      targetWord: "tail",
-      wildcard: "table"
-    }
-  ];
+    // --- State ---
+    let currentIndex = 0;
+    let userInfo = {name: '', age: '', gender: ''};
+    let userAnswers = [];
 
-  let questionIndex = 0;
-  const userAnswers = [];
-  const userInfo = {};
-
-  // --- User info ---
-  function showUserInfoForm() {
-    const app = document.getElementById("app");
-    app.innerHTML = `
-      <h2>DRM Task</h2>
-      <p>Thank you for helping out with this assignment! Please enter your information:</p>
-      <label>Name: <input type="text" id="name" /></label><br><br>
-      <label>Age: <input type="text" id="age" /></label><br><br>
-      <label>Gender: 
+    // --- Functions ---
+    function showInstructions() {
+      const app = document.getElementById("app");
+      app.innerHTML = `
+        <h2>Welcome to the Word Quiz!</h2>
+        <p>Please enter your information:</p>
+        <input id="name" placeholder="Name"/><br/><br/>
+        <input id="age" placeholder="Age"/><br/><br/>
         <select id="gender">
-          <option value="">Select...</option>
-          <option value="Female">Female</option>
+          <option value="">Select Gender</option>
           <option value="Male">Male</option>
-        </select>
-      </label><br><br>
-      <button onclick="submitUserInfo()">Continue</button>
-    `;
-  }
-
-  function submitUserInfo() {
-    const name = document.getElementById("name").value.trim();
-    const ageInput = document.getElementById("age").value.trim();
-    const gender = document.getElementById("gender").value;
-
-    if (!name) { alert("Please enter your name."); return; }
-    const age = parseInt(ageInput, 10);
-    if (!ageInput || isNaN(age)) { alert("Please enter a valid integer for age."); return; }
-    if (gender !== "Male" && gender !== "Female") { alert("Please select Male or Female."); return; }
-
-    userInfo.name = name;
-    userInfo.age = age;
-    userInfo.gender = gender;
-
-    showFlashWarning();
-  }
-
-  // --- Flash warning ---
-  function showFlashWarning() {
-    const app = document.getElementById("app");
-    app.innerHTML = `
-      <h2>Brace yourself!</h2>
-      <p>Heads up: This next part will show flashing words quickly. Pay attention.</p>
-      <button onclick="startQuiz()">Ready or not....</button>
-    `;
-  }
-
-  // --- Flashing words ---
-  function startQuiz() { currentIndex = 0; showWord(); }
-
-  function showWord() {
-    const app = document.getElementById("app");
-    if (currentIndex < words.length) {
-      app.innerHTML = `<h1 style="font-size: 4em; text-align:center;">${words[currentIndex]}</h1>`;
-      setTimeout(() => { currentIndex++; showWord(); }, 1500);
-    } else {
-      showTransitionPage();
-    }
-  }
-
-  // --- Transition page ---
-  function showTransitionPage() {
-    const app = document.getElementById("app");
-    app.innerHTML = `
-      <h2>Almost done....</h2>
-      <p>You will now be asked a series of questions.</p>
-      <button onclick="startQuestions()">Continue</button>
-    `;
-  }
-
-  function startQuestions() { questionIndex = 0; showQuestion(); }
-
-  // --- Show questions ---
-  function showQuestion() {
-    const app = document.getElementById("app");
-    const q = questions[questionIndex];
-    if (!q) { showSummaryPage(); return; }
-
-    if (q.type === "number") {
-      app.innerHTML = `<h2>${q.prompt}</h2>
-        <input id="answer" placeholder="Enter a number"/>
-        <button onclick="submitAnswer()">Continue</button>`;
-    } else if (q.type === "dropdown") {
-      const optionsHTML = q.options.map(opt => `<option value="${opt}">${opt}</option>`).join("");
-      app.innerHTML = `<h2>${q.prompt}</h2>
-        <select id="answer"><option value="">Select an answer</option>${optionsHTML}</select>
-        <button onclick="submitAnswer()">Continue</button>`;
-    } else if (q.type === "selectAll") {
-      const optionsHTML = q.options.map(opt => `<label><input type="checkbox" value="${opt}"/> ${opt}</label>`).join("");
-      app.innerHTML = `<h2>${q.prompt}</h2>
-                       <div class="quiz-checkbox-list">${optionsHTML}</div>
-                       <button onclick="submitAnswer()">Continue</button>`;
-    }
-  }
-
-  function submitAnswer() {
-    const q = questions[questionIndex];
-    let answerInput;
-
-    if (q.type === "number" || q.type === "dropdown") {
-      answerInput = document.getElementById("answer").value.trim();
-    } else if (q.type === "selectAll") {
-      const checkboxes = Array.from(document.querySelectorAll("input[type='checkbox']"));
-      answerInput = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
-      if (answerInput.length === 0) { alert("Please select at least one word."); return; }
+          <option value="Female">Female</option>
+        </select><br/><br/>
+        <button onclick="submitUserInfo()">Continue</button>
+      `;
     }
 
-    if (q.type === "number") { if (!/^\d+$/.test(answerInput)) { alert("Please enter a valid number."); return; } }
-    else if (q.type === "dropdown") { if (answerInput === "") { alert("Please select an option."); return; } }
+    function submitUserInfo() {
+      const name = document.getElementById("name").value.trim();
+      const age = document.getElementById("age").value.trim();
+      const gender = document.getElementById("gender").value;
 
-    userAnswers.push(answerInput);
-    questionIndex++;
-    showQuestion();
-  }
+      if (!name || !age || isNaN(parseInt(age)) || !gender) {
+        alert("Please enter a valid name, integer age, and select gender.");
+        return;
+      }
 
-  // --- Final summary ---
-  function showSummaryPage() {
-    const app = document.getElementById("app");
-    const q = questions.find(q => q.type === "selectAll");
-    const userSelection = userAnswers[userAnswers.length - 1];
+      userInfo = {name, age: parseInt(age), gender};
+      showWarning();
+    }
 
-    const selectedSet = new Set(userSelection);
-    const correctSet = new Set(q.correctWords);
+    function showWarning() {
+      const app = document.getElementById("app");
+      app.innerHTML = `
+        <h2>Instructions</h2>
+        <p>You will see a series of words flash on the screen. Please pay attention and try to remember them. Select continue when ready.</p>
+        <button onclick="startWordList()">Continue</button>
+      `;
+    }
 
-    const correctSelected = userSelection.filter(w => correctSet.has(w));
-    const incorrectSelected = userSelection.filter(w => !correctSet.has(w));
-    const missed = q.correctWords.filter(w => !selectedSet.has(w));
+    function startWordList() {
+      currentIndex = 0;
+      showWord();
+    }
 
-    const gotTarget = selectedSet.has(q.targetWord);
-    const gotWildcard = selectedSet.has(q.wildcard);
+    function showWord() {
+      const app = document.getElementById("app");
+      if (currentIndex >= words.length) {
+        showQuizIntro();
+        return;
+      }
+      app.innerHTML = `<div id="word">${words[currentIndex]}</div>`;
+      setTimeout(() => {
+        currentIndex++;
+        showWord();
+      }, 1500);
+    }
 
-    let html = `<h2>Summary</h2>`;
-    html += `<p>All done! Please take a screenshot of this page and send it to your very grateful friend. Thanks!</p>`;
-    html += `<div class="user-info">Name: ${userInfo.name} | Age: ${userInfo.age} | Gender: ${userInfo.gender}</div>`;
-    html += `<div class="summary-box"><h3>${q.prompt}</h3>`;
-    html += `<div class="quiz-checkbox-list">`; // multi-column layout
-    q.options.forEach(option => {
-      const checked = selectedSet.has(option) ? "checked" : "";
-      html += `<label><input type="checkbox" disabled ${checked}/> ${option}</label>`;
-    });
-    html += `</div><div class="result">`;
-    html += `<p class="${gotTarget ? "correct" : "incorrect"}">Target word "${q.targetWord}": ${gotTarget ? "Selected ✅" : "Not selected ❌"}</p>`;
-    html += `<p class="${gotWildcard ? "incorrect" : "correct"}">Wildcard "${q.wildcard}": ${gotWildcard ? "Selected ❌" : "Not selected ✅"}</p>`;
-    html += `<p class="correct">Correct words selected: ${correctSelected.join(", ") || "(none)"}</p>`;
-    html += `<p class="incorrect">Incorrect words selected: ${incorrectSelected.join(", ") || "(none)"}</p>`;
-    html += `<p class="missed">Missed words: ${missed.join(", ") || "(none)"}</p>`;
-    html += `</div></div>`;
+    function showQuizIntro() {
+      const app = document.getElementById("app");
+      app.innerHTML = `
+        <h2>You will now be asked a series of questions.</h2>
+        <button onclick="showQuestion(0)">Continue</button>
+      `;
+    }
 
-    app.innerHTML = html;
-  }
+    function showQuestion(qIndex) {
+      currentIndex = qIndex;
+      const q = questions[qIndex];
+      const app = document.getElementById("app");
 
-  // Prevent back button
-  history.pushState(null, null, location.href);
-  window.onpopstate = function () { history.go(1); };
+      if (q.type === 'number') {
+        app.innerHTML = `
+          <div class="quiz-question">
+            <p>${q.prompt}</p>
+            <input id="answer" placeholder="Enter a number"/>
+          </div>
+          <button onclick="submitAnswer()">Continue</button>
+        `;
+      } else if (q.type === 'select') {
+        let optionsHtml = q.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+        app.innerHTML = `
+          <div class="quiz-question">
+            <p>${q.prompt}</p>
+            <select id="answer">${optionsHtml}</select>
+          </div>
+          <button onclick="submitAnswer()">Continue</button>
+        `;
+      } else if (q.type === 'check') {
+        let checkboxes = q.options.map(opt => `
+          <label><input type="checkbox" value="${opt}"/> ${opt}</label>
+        `).join('');
+        app.innerHTML = `
+          <div class="quiz-question">
+            <p>${q.prompt}</p>
+            <div class="checkbox-grid">${checkboxes}</div>
+          </div>
+          <button onclick="submitAnswer()">Continue</button>
+        `;
+      }
+    }
 
-  showUserInfoForm();
-</script>
+    function submitAnswer() {
+      const q = questions[currentIndex];
+
+      let answer;
+      if (q.type === 'number') {
+        const val = document.getElementById("answer").value;
+        if (!val || isNaN(parseInt(val))) {
+          alert("Please enter a number.");
+          return;
+        }
+        answer = parseInt(val);
+      } else if (q.type === 'select') {
+        answer = document.getElementById("answer").value;
+      } else if (q.type === 'check') {
+        const checked = Array.from(document.querySelectorAll("input[type='checkbox']:checked")).map(cb => cb.value);
+        answer = checked;
+      }
+
+      userAnswers.push({prompt: q.prompt, answer: answer});
+      if (currentIndex + 1 < questions.length) {
+        showQuestion(currentIndex + 1);
+      } else {
+        showSummary();
+      }
+    }
+
+    function showSummary() {
+      const app = document.getElementById("app");
+      const lastQ = questions[questions.length - 1]; // checklist
+      const selectedLower = userAnswers[userAnswers.length-1].answer.map(w => w.toLowerCase());
+      const originalLower = lastQ.originalList.map(w => w.toLowerCase());
+
+      const correct = selectedLower.filter(w => originalLower.includes(w));
+      const incorrect = selectedLower.filter(w => !originalLower.includes(w));
+      const missed = originalLower.filter(w => !selectedLower.includes(w));
+
+      const targetLower = lastQ.targetWord.toLowerCase();
+      const wildcardLower = lastQ.wildcard.toLowerCase();
+
+      let targetStatus = selectedLower.includes(targetLower) ? "✔️ Target word selected" : "❌ Target word NOT selected";
+      let wildcardStatus = selectedLower.includes(wildcardLower) ? "❌ Wildcard selected" : "✔️ Wildcard NOT selected";
+
+      const checkboxes = lastQ.options.map(opt => `
+        <label><input type="checkbox" ${userAnswers[userAnswers.length-1].answer.includes(opt) ? 'checked' : ''} disabled /> ${opt}</label>
+      `).join('');
+
+      app.innerHTML = `
+        <h2>Quiz Complete! Please screenshot this page and send it.</h2>
+        <p><strong>Name / Age / Gender:</strong> ${userInfo.name} / ${userInfo.age} / ${userInfo.gender}</p>
+        <p><strong>${lastQ.prompt}</strong></p>
+        <div class="checkbox-grid">${checkboxes}</div>
+        <p>${targetStatus}</p>
+        <p>${wildcardStatus}</p>
+        <p>Correct words selected: ${correct.length}</p>
+        <p>Words incorrectly selected: ${incorrect.length}</p>
+        <p>Words missed: ${missed.length}</p>
+      `;
+    }
+
+    // --- Start ---
+    showInstructions();
+  </script>
 
 </body>
 </html>
