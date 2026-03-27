@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Word Quiz</title>
+  <title>DRM</title>
   <style>
     body { font-family: Arial, sans-serif; }
     #word { font-size: 3em; text-align: center; margin: 50px; }
@@ -43,8 +43,8 @@
     function showInstructions() {
       const app = document.getElementById("app");
       app.innerHTML = `
-        <h2>Welcome to the Word Quiz!</h2>
-        <p>Please enter your information:</p>
+        <h2>Welcome!</h2>
+        <p>Thank you for taking this. Please enter your information:</p>
         <input id="name" placeholder="Name"/><br/><br/>
         <input id="age" placeholder="Age"/><br/><br/>
         <select id="gender">
@@ -73,9 +73,9 @@
     function showWarning() {
       const app = document.getElementById("app");
       app.innerHTML = `
-        <h2>Instructions</h2>
-        <p>You will see a series of words flash on the screen. Please pay attention and try to remember them. Select continue when ready.</p>
-        <button onclick="startWordList()">Continue</button>
+        <h2>Brace yourself!</h2>
+        <p>You will see a series of words flash on the screen. Pay attention.</p>
+        <button onclick="startWordList()">Ready or not....</button>
       `;
     }
 
@@ -100,7 +100,8 @@
     function showQuizIntro() {
       const app = document.getElementById("app");
       app.innerHTML = `
-        <h2>You will now be asked a series of questions.</h2>
+        <h2>Almost done....</h2>
+        <p>You will now be asked a series of questions.</p>
         <button onclick="showQuestion(0)">Continue</button>
       `;
     }
@@ -188,7 +189,7 @@
       `).join('');
 
       app.innerHTML = `
-        <h2>Quiz Complete! Please screenshot this page and send it.</h2>
+        <h2>All done! Please screenshot this page and send it back to your greatful friend. Thank you!</h2>
         <p><strong>Name / Age / Gender:</strong> ${userInfo.name} / ${userInfo.age} / ${userInfo.gender}</p>
         <p><strong>${lastQ.prompt}</strong></p>
         <div class="checkbox-grid">${checkboxes}</div>
